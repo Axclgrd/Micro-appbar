@@ -5,45 +5,36 @@ import SMCKit
 struct PanelView: View {
     @Bindable var monitor: Monitor
     @Bindable var commander: FanCommander
+    @Environment(\.accessibilityReduceMotion) private var reduireMouvement
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Espace.m) {
             header
-            Divider()
             temperatures
-            Divider()
             fansSection
-            Divider()
             controlSection
-            Divider()
             footer
         }
-        .padding(14)
+        .padding(Espace.panneau)
+        // Le passage Automatique / Manuel change la hauteur du panneau : on
+        // l'adoucit, sauf si la personne a demandé moins de mouvement.
+        .animation(reduireMouvement ? nil : .snappy(duration: 0.25), value: commander.isManual)
     }
 
     // MARK: Verdict
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: verdictIcon)
-                .font(.title2)
-                .foregroundStyle(verdictColor)
-                .frame(width: 26)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(monitor.verdict?.label ?? "—")
-                        .font(.headline)
-                    if let hotspot = monitor.thermal?.hotspot {
-                        Text(format(hotspot))
-                            .font(.headline)
-                            .foregroundStyle(verdictColor)
-                    }
-                }
-                Text(monitor.verdict?.explanation ?? "Lecture en cours…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        EnTete(symbole: verdictIcon,
+               teinte: verdictColor,
+               titre: monitor.verdict?.label ?? "—",
+               detail: monitor.verdict?.explanation ?? "Lecture en cours…") {
+            if let hotspot = monitor.thermal?.hotspot {
+                // Le point chaud est la seule valeur « héros » : un cran au-dessus
+                // du corps, en chiffres tabulaires pour ne pas trembler.
+                Text(format(hotspot))
+                    .font(.title3.weight(.semibold))
+                    .monospacedDigit()
+                    .accessibilityLabel("Point chaud \(format(hotspot))")
             }
         }
     }
@@ -70,7 +61,7 @@ struct PanelView: View {
     // MARK: Températures
 
     private var temperatures: some View {
-        VStack(spacing: 5) {
+        Groupe("Températures") {
             row("Cœurs performance", monitor.thermal?.performanceCores)
             row("Cœurs efficience", monitor.thermal?.efficiencyCores)
             row("GPU", monitor.thermal?.gpu)
@@ -80,18 +71,7 @@ struct PanelView: View {
     }
 
     private func row(_ label: String, _ value: Double?, hint: String? = nil) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.callout)
-                if let hint {
-                    Text(hint).font(.caption2).foregroundStyle(.tertiary)
-                }
-            }
-            Spacer()
-            Text(value.map(format) ?? "—")
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
+        Ligne(label, value.map(format) ?? "—", aide: hint)
     }
 
     private func format(_ celsius: Double) -> String {
@@ -101,34 +81,44 @@ struct PanelView: View {
     // MARK: Ventilateurs
 
     private var fansSection: some View {
-        VStack(spacing: 8) {
+        Groupe("Ventilateurs") {
+            if monitor.fans.isEmpty {
+                Text("Aucun ventilateur détecté")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             ForEach(monitor.fans) { fan in
-                VStack(spacing: 3) {
-                    HStack {
-                        Text("Ventilateur \(fan.index + 1)").font(.callout)
+                VStack(alignment: .leading, spacing: Espace.xs) {
+                    HStack(alignment: .firstTextBaseline, spacing: Espace.s) {
+                        Text("Ventilateur \(fan.index + 1)")
                         if fan.mode.isManual {
-                            Text("manuel")
-                                .font(.caption2.weight(.medium))
-                                .padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(Color.accentColor.opacity(0.18), in: Capsule())
+                            Text("Manuel")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(.horizontal, 6).padding(.vertical, 1)
+                                .background(Color.accentColor.opacity(0.15), in: Capsule())
                         }
-                        Spacer()
+                        Spacer(minLength: Espace.s)
                         Text("\(Int(fan.actual)) RPM")
-                            .font(.callout.monospacedDigit())
+                            .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
                     ProgressView(value: fan.load)
                         .progressViewStyle(.linear)
+                        .accessibilityHidden(true)
+                    // Les bornes situent la jauge : de l'arrêt au plein régime.
                     HStack {
-                        Text("\(Int(fan.minimum))").font(.caption2).foregroundStyle(.tertiary)
+                        Text("\(Int(fan.minimum))")
                         Spacer()
-                        Text("\(Int(fan.maximum))").font(.caption2).foregroundStyle(.tertiary)
+                        Text("\(Int(fan.maximum))")
                     }
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
                 }
-            }
-            if monitor.fans.isEmpty {
-                Text("Aucun ventilateur détecté")
-                    .font(.caption).foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityValue("\(Int(fan.actual)) RPM, charge \(Int(fan.load * 100)) %")
             }
         }
     }
@@ -138,8 +128,8 @@ struct PanelView: View {
     @ViewBuilder
     private var controlSection: some View {
         if commander.available {
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("", selection: modeBinding) {
+            Groupe("Contrôle") {
+                Picker("Mode", selection: modeBinding) {
                     Text("Automatique").tag(false)
                     Text("Manuel").tag(true)
                 }
@@ -148,10 +138,12 @@ struct PanelView: View {
 
                 if commander.isManual {
                     HStack {
-                        Text("Consigne").font(.caption).foregroundStyle(.secondary)
+                        Text("Consigne")
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Text("\(Int(commander.sliderRPM)) RPM")
-                            .font(.callout.monospacedDigit().weight(.medium))
+                            .font(.body.weight(.medium))
+                            .monospacedDigit()
                     }
 
                     // La consigne n'est envoyée qu'au relâchement : inutile de
@@ -165,8 +157,11 @@ struct PanelView: View {
                             Task { await commander.setManual(commander.sliderRPM) }
                         }
                     )
+                    .accessibilityLabel("Consigne du ventilateur")
 
-                    HStack(spacing: 6) {
+                    // Quatre boutons de même largeur : un réglage, pas une action
+                    // principale, donc le style bordé discret du système.
+                    HStack(spacing: Espace.xs) {
                         presetButton("Silencieux", ratio: 0.0)
                         presetButton("Équilibré", ratio: 0.35)
                         presetButton("Frais", ratio: 0.65)
@@ -177,22 +172,41 @@ struct PanelView: View {
                         Label("Consigne relevée : température critique",
                               systemImage: "exclamationmark.shield.fill")
                             .font(.caption)
+                            .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(.orange)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
         } else {
-            VStack(alignment: .leading, spacing: 5) {
-                Label("Contrôle manuel indisponible", systemImage: "lock.fill")
-                    .font(.callout.weight(.medium))
-                Text(commander.status ?? "Démon non installé.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text("Lancer ./install.sh dans le dossier du projet.")
-                    .font(.caption2).foregroundStyle(.tertiary)
-                    .textSelection(.enabled)
+            // Pas de démon : on explique et on dit quoi faire, sans bouton mort.
+            Groupe {
+                VStack(spacing: Espace.xs) {
+                    Image(systemName: "lock.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                    Text("Contrôle manuel indisponible")
+                        .font(.headline)
+                    Text(commander.status ?? "Démon non installé.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Text("./install.sh")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, Espace.s).padding(.vertical, 2)
+                        .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: 5))
+                    Text("à lancer dans le dossier du projet")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
             }
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -212,28 +226,33 @@ struct PanelView: View {
     }
 
     private func presetButton(_ title: String, ratio: Double) -> some View {
-        Button(title) {
+        Button {
             let span = commander.maximumRPM - commander.minimumRPM
             let value = commander.minimumRPM + span * ratio
             commander.sliderRPM = value
             Task { await commander.setManual(value) }
+        } label: {
+            Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .font(.caption2)
+        .help("Régler le ventilateur sur « \(title) »")
     }
 
     // MARK: Pied
 
     private var footer: some View {
-        HStack {
+        PiedDePanneau {
             if let error = monitor.error {
-                Text(error).font(.caption2).foregroundStyle(.red).lineLimit(1)
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.red)
+                    .lineLimit(1)
             }
-            Spacer()
-            Button("Quitter") { NSApplication.shared.terminate(nil) }
-                .buttonStyle(.borderless)
-                .font(.caption)
         }
     }
 }

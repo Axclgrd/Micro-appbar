@@ -3,238 +3,281 @@ import SwiftUI
 
 /// La composition de la barre du haut.
 ///
-/// Le verre suit la règle d'Apple : il n'habille que ce qui flotte au-dessus du
-/// contenu — ici la barre d'actions du bas. Les cartes de groupes sont du
-/// contenu, elles restent en matériau opaque. Verre sur verre est proscrit, et
-/// une seule chose est teintée : l'action principale.
+/// Une fenêtre à la manière de Réglages Système : à gauche les groupes (une
+/// icône de la barre chacun) et, à part, les outils masqués ; à droite le
+/// détail du groupe choisi, en formulaire groupé.
+///
+/// Le verre vient de la barre latérale et de la barre d'outils du système, qui
+/// le posent d'eux-mêmes sur la couche des contrôles. Le contenu reste sur les
+/// surfaces standard des listes et formulaires : aucun verre n'est dessiné ici,
+/// donc ni verre sur verre ni verre sur le contenu.
 struct DashboardView: View {
     @State private var config = Config.shared
+    @State private var selection: Destination?
 
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            ScrollView { DashboardContent() }
-            actions
-        }
-        .frame(minWidth: 560, minHeight: 460)
-        .background(.background)
+    enum Destination: Hashable {
+        case group(UUID)
+        case hidden
     }
 
-    // MARK: La barre flottante
+    /// Une sélection devenue invalide (groupe supprimé) retombe sur le premier
+    /// groupe, plutôt que de laisser un détail vide.
+    private var current: Destination? {
+        switch selection {
+        case .group(let id) where config.groups.contains(where: { $0.id == id }): return selection
+        case .hidden: return selection
+        default: return config.groups.first.map { .group($0.id) }
+        }
+    }
 
-    private var actions: some View {
-        GlassEffectContainer(spacing: 14) {
-            HStack(spacing: 10) {
+    var body: some View {
+        NavigationSplitView {
+            sidebar
+                .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 300)
+        } detail: {
+            detail
+        }
+        .frame(minWidth: 640, minHeight: 440)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
                 Button {
-                    Config.shared.addGroup()
+                    selection = .group(config.addGroup())
                 } label: {
                     Label("Nouveau groupe", systemImage: "plus")
                 }
-                .buttonStyle(.glassProminent)
+                .keyboardShortcut("n")
+                .help("Ajouter un groupe à la barre des menus (⌘N)")
+            }
+        }
+    }
 
-                Button {
-                    NSApp.keyWindow?.performClose(nil)
-                } label: {
-                    Text("Fermer")
+    // MARK: La barre latérale
+
+    private var sidebar: some View {
+        List(selection: Binding(get: { current }, set: { selection = $0 })) {
+            Section("Barre des menus") {
+                ForEach(config.groups) { group in
+                    Label(group.displayName, systemImage: group.symbol)
+                        .tag(Destination.group(group.id))
+                        .contextMenu {
+                            Button("Supprimer le groupe", role: .destructive) {
+                                config.removeGroup(group)
+                            }
+                        }
                 }
-                .buttonStyle(.glass)
+                .onMove { config.moveGroups(from: $0, to: $1) }
+            }
+            Section("Hors de la barre") {
+                Label("Masqués", systemImage: "eye.slash")
+                    .badge(config.hidden.count)
+                    .tag(Destination.hidden)
             }
         }
-        .padding(.bottom, 18)
-    }
-}
-
-/// Le contenu, séparé de la fenêtre qui le fait défiler — ce qui permet aussi
-/// de le rendre hors écran pour le relire.
-struct DashboardContent: View {
-    @State private var config = Config.shared
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            ForEach(config.groups) { group in
-                GroupCard(group: group)
-            }
-            hidden
-            Color.clear.frame(height: 64)   // la place de la barre flottante
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 30)
+        .listStyle(.sidebar)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("Trousse").font(.title2.weight(.semibold))
-            Text("Ce qui apparaît dans la barre du haut, et sous quel nom.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.bottom, 2)
-    }
-
-    // MARK: Les masqués
+    // MARK: Le détail
 
     @ViewBuilder
-    private var hidden: some View {
-        let modules = Registry.shared.modules.filter { config.hidden.contains($0.id) }
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Masqués")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-            if modules.isEmpty {
-                Text("Aucun. Un outil masqué reste utilisable — par son raccourci, ou depuis cette fenêtre — mais ne prend pas de place dans la barre.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                ForEach(modules, id: \.id) { module in
-                    ModuleRow(module: module)
-                }
+    private var detail: some View {
+        switch current {
+        case .group(let id):
+            if let group = config.groups.first(where: { $0.id == id }) {
+                GroupDetail(group: group)
+                    .id(group.id)
+            }
+        case .hidden:
+            HiddenDetail()
+        case nil:
+            ContentUnavailableView {
+                Label("Aucun groupe", systemImage: "menubar.rectangle")
+            } description: {
+                Text("Un groupe est une icône de la barre des menus. Crée-en un pour y ranger des outils.")
+            } actions: {
+                Button("Nouveau groupe") { selection = .group(config.addGroup()) }
+                    .buttonStyle(.borderedProminent)
             }
         }
-        .padding(14)
-        .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 12))
     }
-
 }
 
-/// Un groupe : une icône de la barre, son nom, et ce qu'il contient.
-struct GroupCard: View {
+// MARK: - Un groupe
+
+/// Le détail d'un groupe : son identité, puis ses outils.
+struct GroupDetail: View {
     let group: MenuGroup
     private var config: Config { Config.shared }
 
-    @FocusState private var editing: Bool
-    @State private var hovering = false
-
     /// Assez de symboles pour distinguer des groupes, pas assez pour hésiter.
-    private static let symbols = [
-        "square.grid.2x2", "shippingbox", "wrench.and.screwdriver", "gauge.with.dots.needle.33percent",
-        "externaldrive", "moon", "text.viewfinder", "waveform",
-        "app.connected.to.app.below.fill", "bolt", "thermometer.medium", "folder",
+    private static let symbols: [(name: String, label: String)] = [
+        ("square.grid.2x2", "Grille"), ("shippingbox", "Boîte"),
+        ("wrench.and.screwdriver", "Outils"), ("gauge.with.dots.needle.33percent", "Jauge"),
+        ("externaldrive", "Disque"), ("moon", "Lune"),
+        ("text.viewfinder", "Texte"), ("waveform", "Onde"),
+        ("app.connected.to.app.below.fill", "Connexions"), ("bolt", "Éclair"),
+        ("thermometer.medium", "Thermomètre"), ("folder", "Dossier"),
     ]
 
+    /// Les outils qui ne sont pas déjà dans ce groupe : ceux qu'on peut y amener.
+    private var available: [Module] {
+        Registry.shared.modules.filter { !group.modules.contains($0.id) }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        let modules = config.modules(of: group)
+        Form {
+            Section {
+                TextField("Nom", text: Binding(
+                    get: { group.name },
+                    set: { config.rename(group, to: $0) }),
+                    prompt: Text("Nom du groupe"))
+                    .help("Le nom du groupe, affiché dans le panneau et en infobulle")
+
+                Picker("Icône", selection: Binding(
+                    get: { group.symbol },
+                    set: { config.setSymbol($0, for: group) })) {
+                    ForEach(Self.symbols, id: \.name) { symbol in
+                        Label(symbol.label, systemImage: symbol.name).tag(symbol.name)
+                    }
+                }
+                .help("L'icône du groupe dans la barre des menus")
+            } header: {
+                Text("Groupe")
+            } footer: {
+                Text("Le panneau de la barre des menus montre les outils de ce groupe, dans cet ordre.")
+            }
+
+            Section("Outils") {
+                if modules.isEmpty {
+                    Text("Aucun outil. Cette icône n'ouvrirait qu'un panneau vide.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(modules, id: \.id) { module in
+                        ToolRow(module: module, current: group)
+                    }
+                    .onMove { config.moveModules(in: group, from: $0, to: $1) }
+                }
+
                 Menu {
-                    ForEach(Self.symbols, id: \.self) { symbol in
+                    ForEach(available, id: \.id) { module in
                         Button {
-                            config.setSymbol(symbol, for: group)
+                            config.place(module.id, in: group)
                         } label: {
-                            Label(symbol, systemImage: symbol)
+                            Label(module.title, systemImage: module.symbol)
                         }
                     }
                 } label: {
-                    Image(systemName: group.symbol)
-                        .font(.system(size: 14))
-                        .frame(width: 26, height: 26)
+                    Label("Ajouter un outil", systemImage: "plus.circle")
                 }
-                .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Changer l'icône du groupe")
-
-                // Au repos c'est le titre de la carte, pas une boîte grise posée
-                // en plein milieu. Le fond n'apparaît qu'au survol — et le
-                // curseur en I du champ texte le confirme avant même le clic —
-                // puis franchement pendant la saisie, où il faut voir jusqu'où
-                // le nom peut aller.
-                TextField("Nom du groupe", text: Binding(
-                    get: { group.name },
-                    set: { config.rename(group, to: $0) }))
-                    .textFieldStyle(.plain)
-                    .font(.headline)
-                    .focused($editing)
-                    .frame(maxWidth: 240, alignment: .leading)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background {
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(.quaternary)
-                            .opacity(editing ? 0.7 : (hovering ? 0.35 : 0))
-                    }
-                    .onHover { hovering = $0 }
-                    .animation(.easeOut(duration: 0.12), value: hovering)
-                    .animation(.easeOut(duration: 0.12), value: editing)
-                    .help("Renommer le groupe")
-
-                Spacer(minLength: 4)
-
-                Menu {
-                    Button("Monter") { config.move(group, by: -1) }
-                    Button("Descendre") { config.move(group, by: 1) }
-                    Divider()
-                    Button("Supprimer le groupe", role: .destructive) { config.removeGroup(group) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
+                .disabled(available.isEmpty)
+                .help("Ajouter un outil à ce groupe")
             }
 
-            let modules = config.modules(of: group)
-            if modules.isEmpty {
-                Text("Vide — cette icône n'ouvrirait qu'un panneau blanc.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            } else {
-                ForEach(modules, id: \.id) { module in
-                    ModuleRow(module: module)
+            Section {
+                Button("Supprimer le groupe", role: .destructive) {
+                    config.removeGroup(group)
                 }
+            } footer: {
+                Text("Les outils du groupe passent dans les masqués.")
             }
         }
-        .padding(14)
-        .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 12))
+        .formStyle(.grouped)
+        .navigationTitle(group.displayName)
     }
 }
 
-/// Une ligne d'outil, et où l'envoyer.
+// MARK: - Les masqués
+
+/// Les outils qu'on ne veut voir dans aucun groupe.
+struct HiddenDetail: View {
+    @State private var config = Config.shared
+
+    var body: some View {
+        let modules = Registry.shared.modules.filter { config.hidden.contains($0.id) }
+        Group {
+            if modules.isEmpty {
+                ContentUnavailableView {
+                    Label("Aucun outil masqué", systemImage: "eye")
+                } description: {
+                    Text("Un outil masqué reste utilisable — par son raccourci, ou depuis cette fenêtre — mais ne prend pas de place dans la barre.")
+                }
+            } else {
+                Form {
+                    Section {
+                        ForEach(modules, id: \.id) { module in
+                            ToolRow(module: module, current: nil)
+                        }
+                    } footer: {
+                        Text("Un outil masqué reste utilisable par son raccourci, mais ne prend pas de place dans la barre.")
+                    }
+                }
+                .formStyle(.grouped)
+            }
+        }
+        .navigationTitle("Masqués")
+    }
+}
+
+// MARK: - Un outil
+
+/// Une ligne d'outil : son symbole, son nom, son état, et où l'envoyer.
 ///
-/// Le menu ne porte plus le nom du groupe courant : répété sur chaque ligne
-/// d'une carte, il redisait ce que la carte annonce déjà en titre. Le groupe
-/// courant reste lisible là où il sert vraiment — la coche, dans le menu
-/// ouvert, quand il s'agit justement de choisir une destination.
-struct ModuleRow: View {
+/// Le groupe courant porte la coche dans le menu ouvert, là où il s'agit
+/// justement de choisir une destination.
+struct ToolRow: View {
     let module: Module
+    let current: MenuGroup?
     private var config: Config { Config.shared }
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: Espace.m) {
             Image(systemName: module.symbol)
-                .font(.system(size: 13))
-                .frame(width: 20)
                 .foregroundStyle(.tint)
+                .frame(width: 22)
+                .accessibilityHidden(true)
 
-            Text(module.title).font(.callout)
-
-            Spacer(minLength: 8)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(module.title)
+                if !module.summary.isEmpty {
+                    Text(module.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: Espace.s)
 
             Menu {
-                ForEach(config.groups) { destination in
-                    Button {
-                        config.place(module.id, in: destination)
-                    } label: {
-                        if config.group(containing: module.id)?.id == destination.id {
-                            Label(destination.displayName, systemImage: "checkmark")
-                        } else {
-                            Text(destination.displayName)
+                Section("Déplacer vers") {
+                    ForEach(config.groups) { destination in
+                        Button {
+                            config.place(module.id, in: destination)
+                        } label: {
+                            if current?.id == destination.id {
+                                Label(destination.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(destination.displayName)
+                            }
                         }
                     }
                 }
-                Divider()
-                Button("Masquer") { config.place(module.id, in: nil) }
+                if current != nil {
+                    Divider()
+                    Button("Masquer", systemImage: "eye.slash") {
+                        config.place(module.id, in: nil)
+                    }
+                }
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 12))
+                Image(systemName: "ellipsis.circle")
                     .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 18)
-                    .contentShape(.rect)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
             .help("Déplacer vers un autre groupe, ou masquer")
+            .accessibilityLabel("Actions pour \(module.title)")
         }
-        .padding(.vertical, 3)
+        .accessibilityElement(children: .contain)
     }
 }

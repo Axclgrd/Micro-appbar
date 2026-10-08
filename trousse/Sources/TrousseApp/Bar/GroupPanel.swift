@@ -4,10 +4,12 @@ import SwiftUI
 /// Le panneau d'une icône : la liste des outils du groupe, puis l'outil choisi.
 ///
 /// Pas de verre ici. Le popover du système en pose déjà, et Apple est explicite :
-/// le verre ne se superpose pas au verre.
+/// le verre ne se superpose pas au verre. Le contenu reste sur le fond du
+/// popover ; seul le survol d'une ligne dessine une surface douce (`survol`).
 struct GroupPanel: View {
     let group: MenuGroup
     @State private var opened: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(group: MenuGroup, initial: String? = nil) {
         self.group = group
@@ -24,91 +26,102 @@ struct GroupPanel: View {
                 list
             }
         }
-        .padding(.vertical, 10)
-        .animation(.snappy(duration: 0.2), value: opened)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: opened)
     }
 
     // MARK: La liste
 
     private var list: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(group.displayName)
-                .font(.callout.weight(.semibold))
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+        VStack(alignment: .leading, spacing: Espace.s) {
+            Label(group.displayName, systemImage: group.symbol)
+                .font(.headline)
+                .padding(.horizontal, Espace.panneau)
 
             if modules.isEmpty {
-                Text("Ce groupe est vide. Ajoute-lui des outils dans les réglages.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 8)
+                EtatVide(symbole: "tray", titre: "Groupe vide",
+                         detail: "Ajoute-lui des outils dans les réglages de Trousse.")
+                    .padding(.horizontal, Espace.panneau)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(modules, id: \.id) { module in
+                        row(module)
+                    }
+                }
+                .padding(.horizontal, Espace.s)
             }
 
-            ForEach(modules, id: \.id) { module in
-                Button {
-                    opened = module.id
-                } label: {
-                    HStack(spacing: 9) {
-                        Image(systemName: module.symbol)
-                            .font(.system(size: 13))
-                            .frame(width: 18)
-                            .foregroundStyle(.tint)
-                        Text(module.title)
-                            .font(.callout)
-                        Spacer(minLength: 6)
+            PiedDePanneau {
+                Button("Réglages…") { Dashboard.shared.show() }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Composer les groupes et les outils")
+            }
+            .padding(.horizontal, Espace.panneau)
+        }
+        .padding(.vertical, Espace.panneau)
+    }
+
+    private func row(_ module: Module) -> some View {
+        Button {
+            opened = module.id
+        } label: {
+            HStack(spacing: Espace.m) {
+                Image(systemName: module.symbol)
+                    .foregroundStyle(.tint)
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(module.title)
+                    if !module.summary.isEmpty {
                         Text(module.summary)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
                     }
-                    .contentShape(.rect)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
+                Spacer(minLength: Espace.s)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-
-            Divider().padding(.vertical, 8)
-
-            HStack(spacing: 0) {
-                Button("Réglages de la trousse…") { Dashboard.shared.show() }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                Spacer()
-                Button("Quitter") { NSApp.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, Espace.s)
+            .padding(.vertical, Espace.s)
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
+        .survol()
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Ouvre l'outil")
+        .help(module.title)
     }
 
     // MARK: Un outil
 
     private func detail(_ module: Module) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: Espace.s) {
+            HStack(spacing: Espace.s) {
                 Button {
                     opened = nil
                 } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.caption.weight(.semibold))
+                    Label(group.displayName, systemImage: "chevron.left")
+                        .labelStyle(.titleAndIcon)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
+                .help("Revenir à la liste des outils")
 
-                Text(module.title)
-                    .font(.callout.weight(.semibold))
                 Spacer()
             }
-            .padding(.horizontal, 12)
+            .font(.subheadline)
+            .padding(.horizontal, Espace.panneau)
+
+            Text(module.title)
+                .font(.headline)
+                .padding(.horizontal, Espace.panneau)
 
             module.makePanel()
         }
+        .padding(.vertical, Espace.m)
     }
 }

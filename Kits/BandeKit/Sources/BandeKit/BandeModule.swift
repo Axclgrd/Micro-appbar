@@ -44,16 +44,20 @@ struct WindowToolPanel: View {
     let open: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: Espace.s) {
             Text(explanation)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if !state.isEmpty {
-                Text(state).font(.caption).foregroundStyle(.tertiary)
+                Text(state)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
             Button(action, action: open)
                 .controlSize(.small)
+                .help("Ouvre la fenêtre de Bande")
         }
         .padding(.horizontal, 14)
     }

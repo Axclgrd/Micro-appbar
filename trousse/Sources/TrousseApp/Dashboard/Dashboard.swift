@@ -21,19 +21,21 @@ final class Dashboard: NSObject, NSWindowDelegate {
             return
         }
 
+        // Une fenêtre standard : barre de titre et barre d'outils du système
+        // (en verre sur macOS 26), barre latérale qui passe sous elles.
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 640, height: 580),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
         window.title = "Trousse"
-        // Barre de titre effacée : le contenu porte le titre, et les pastilles
-        // flottent au-dessus — c'est la disposition de la famille.
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.contentView = NSHostingView(rootView: DashboardView())
-        window.center()
+        window.toolbarStyle = .unified
+        window.tabbingMode = .disallowed
+        window.contentMinSize = NSSize(width: 640, height: 440)
+        window.contentViewController = NSHostingController(rootView: DashboardView())
+        window.setContentSize(NSSize(width: 760, height: 520))
+        window.setFrameAutosaveName("TrousseDashboard")
+        if !window.setFrameUsingName("TrousseDashboard") { window.center() }
         window.delegate = self
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)

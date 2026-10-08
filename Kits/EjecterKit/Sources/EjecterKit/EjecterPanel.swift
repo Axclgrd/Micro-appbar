@@ -5,44 +5,29 @@ struct PanelView: View {
     @Bindable var store: DiskStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            Divider()
+        VStack(alignment: .leading, spacing: Espace.m) {
+            EnTete(symbole: "externaldrive.connected.to.line.below",
+                   titre: "Disques externes",
+                   detail: summary)
 
             if store.devices.isEmpty {
-                empty
+                EtatVide(symbole: "externaldrive.badge.checkmark",
+                         titre: "Rien à éjecter",
+                         detail: "Aucun disque externe ni image disque montée.")
             } else {
-                VStack(spacing: 14) {
-                    ForEach(Array(store.devices.enumerated()), id: \.element.id) { index, device in
-                        if index > 0 { Divider() }
-                        card(device)
-                    }
+                ForEach(store.devices) { device in
+                    card(device)
                 }
             }
 
-            Divider()
             footer
         }
-        .padding(14)
+        .padding(Espace.panneau)
         .onAppear { store.panelVisible = true }
         .onDisappear { store.panelVisible = false }
     }
 
     // MARK: En-tête
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "externaldrive.connected.to.line.below")
-                .font(.title2)
-                .foregroundStyle(.tint)
-                .frame(width: 26)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Disques externes").font(.headline)
-                Text(summary).font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
 
     private var summary: String {
         let mounted = store.devices.filter(\.isMounted).count
@@ -55,52 +40,56 @@ struct PanelView: View {
         }
     }
 
-    private var empty: some View {
-        Text("Aucun disque externe ni image disque montée.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
     // MARK: Un disque
 
+    // Une surface par disque (et non des filets entre eux) : l'éjection agit
+    // sur un disque entier, la surface dit où commence et finit son périmètre.
     @ViewBuilder
     private func card(_ device: Device) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .top, spacing: 8) {
+        Groupe {
+            HStack(alignment: .center, spacing: Espace.m) {
                 Image(systemName: device.kind == .image ? "opticaldiscdrive.fill" : "externaldrive.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(device.isMounted ? Color.accentColor : .secondary)
-                    .frame(width: 18)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text(device.name)
-                        .font(.callout.weight(.medium))
+                        .font(.body.weight(.medium))
                         .lineLimit(1)
                     Text(subtitle(device))
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: Espace.xs)
                 actions(device)
             }
 
             if device.isMounted, let free = device.free {
-                VStack(spacing: 3) {
+                VStack(spacing: Espace.xs) {
                     ProgressView(value: device.fill)
                         .progressViewStyle(.linear)
+                        .accessibilityLabel("Espace utilisé")
+                        .accessibilityValue(device.fill.formatted(.percent.precision(.fractionLength(0))))
                     HStack {
-                        Text("\(bytes(free)) libres").font(.caption2).foregroundStyle(.secondary)
+                        Text("\(bytes(free)) libres")
                         Spacer()
-                        Text(bytes(device.capacity)).font(.caption2).foregroundStyle(.tertiary)
+                        Text(bytes(device.capacity))
                     }
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
                 }
             }
 
             if device.isDormant {
-                Label("Branché mais non monté — rien ne le lit.", systemImage: "moon.zzz.fill")
-                    .font(.caption2)
+                Label("Branché mais non monté : rien ne le lit.", systemImage: "moon.zzz.fill")
+                    .font(.caption)
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.secondary)
             }
 
@@ -108,8 +97,8 @@ struct PanelView: View {
             // « éjecter » a l'air de ne concerner qu'un seul d'entre eux.
             if device.volumes.count > 1 {
                 Text(device.volumes.map(\.name).joined(separator: " · "))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
 
@@ -124,12 +113,21 @@ struct PanelView: View {
     @ViewBuilder
     private func actions(_ device: Device) -> some View {
         if store.busy.contains(device.id) {
-            ProgressView().controlSize(.small)
+            // Un indicateur seul ne dit pas quoi ; le libellé évite de croire
+            // à un blocage pendant que diskutil travaille.
+            HStack(spacing: Espace.s) {
+                ProgressView().controlSize(.small)
+                Text("En cours…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
         } else if device.isMounted {
-            HStack(spacing: 2) {
+            HStack(spacing: Espace.xs) {
                 Button("Éjecter") { Task { await store.eject(device) } }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .help("Éjecter \(device.name)")
 
                 Menu {
                     // Réservé aux disques matériels : une image démontée mais
@@ -144,18 +142,23 @@ struct PanelView: View {
                         }
                     }
                     Divider()
-                    Button("Forcer l'éjection") { Task { await store.forceEject(device) } }
+                    Button("Forcer l'éjection", role: .destructive) {
+                        Task { await store.forceEject(device) }
+                    }
                 } label: {
-                    Image(systemName: "ellipsis")
+                    Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
+                .help("Autres actions")
+                .accessibilityLabel("Autres actions pour \(device.name)")
             }
         } else {
             Button("Remonter") { Task { await store.mount(device) } }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .help("Remonter \(device.name)")
         }
     }
 
@@ -164,22 +167,29 @@ struct PanelView: View {
     @ViewBuilder
     private func outcome(_ device: Device) -> some View {
         if let report = store.report[device.id] {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
+            VStack(alignment: .leading, spacing: Espace.s) {
+                Divider()
+
+                HStack(alignment: .firstTextBaseline, spacing: Espace.s) {
                     Image(systemName: report.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(report.ok ? .green : .orange)
+                        .accessibilityHidden(true)
                     Text(report.ok ? report.message : "Éjection refusée.")
+                        .font(.subheadline.weight(report.ok ? .regular : .medium))
                         .foregroundStyle(report.ok ? .secondary : .primary)
-                    Spacer()
+                    Spacer(minLength: Espace.xs)
                     Button {
                         store.dismiss(device)
                     } label: {
-                        Image(systemName: "xmark")
+                        Image(systemName: "xmark.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
                     }
                     .buttonStyle(.borderless)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
+                    .help("Fermer ce message")
+                    .accessibilityLabel("Fermer le message")
                 }
-                .font(.caption)
                 .fixedSize(horizontal: false, vertical: true)
 
                 if !report.ok {
@@ -188,14 +198,13 @@ struct PanelView: View {
                     // rien à voir avec un processus fautif (disque en panne,
                     // volume protégé). On le garde, en second plan.
                     Text(report.message)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                     blockers(device)
                 }
             }
-            .padding(8)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -203,54 +212,67 @@ struct PanelView: View {
     private func blockers(_ device: Device) -> some View {
         let list = store.blockers[device.id] ?? []
 
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Espace.s) {
             if list.isEmpty {
-                Text("Aucun processus visible. C'est en général Spotlight ou Time Machine, qui tournent sous root et échappent au relevé — attends quelques secondes, ou force.")
-                    .font(.caption2)
+                Text("Aucun processus visible. C'est en général Spotlight ou Time Machine, qui tournent sous root et échappent au relevé : attends quelques secondes, ou force.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
+                Text("Utilisé par")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+
                 ForEach(list) { blocker in
-                    HStack(spacing: 6) {
+                    HStack(spacing: Espace.s) {
                         if let icon = appIcon(blocker) {
-                            Image(nsImage: icon).resizable().frame(width: 15, height: 15)
+                            Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+                                .accessibilityHidden(true)
                         } else {
                             Image(systemName: "terminal")
-                                .font(.caption2)
+                                .symbolRenderingMode(.hierarchical)
                                 .foregroundStyle(.secondary)
-                                .frame(width: 15)
+                                .frame(width: 20)
+                                .accessibilityHidden(true)
                         }
 
                         VStack(alignment: .leading, spacing: 0) {
                             Text(appName(blocker))
-                                .font(.caption.weight(.medium))
+                                .font(.callout.weight(.medium))
                                 .lineLimit(1)
                             if let sample = blocker.sample {
                                 Text(sample)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
                             }
                         }
 
-                        Spacer(minLength: 2)
+                        Spacer(minLength: Espace.xs)
                         Button("Quitter") { Task { await store.quit(blocker, for: device) } }
-                            .buttonStyle(.borderless)
-                            .font(.caption2)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .help("Quitter \(appName(blocker))")
                     }
+                    .padding(.vertical, 2)
+                    .padding(.horizontal, Espace.xs)
+                    .survol()
                 }
             }
 
-            HStack(spacing: 6) {
+            // « Réessayer » est le geste sûr ; « Forcer » risque de perdre
+            // des données non écrites, il reste donc secondaire et rouge.
+            HStack(spacing: Espace.s) {
                 Button("Réessayer") { Task { await store.eject(device) } }
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
-                Button("Forcer") { Task { await store.forceEject(device) } }
+                Button("Forcer", role: .destructive) { Task { await store.forceEject(device) } }
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .tint(.orange)
+                    .help("Éjecter malgré les processus : des données non écrites peuvent être perdues")
                 Spacer()
             }
-            .font(.caption2)
         }
     }
 
@@ -267,11 +289,10 @@ struct PanelView: View {
     // MARK: Pied
 
     private var footer: some View {
-        HStack {
+        PiedDePanneau {
             Toggle("Toujours afficher", isOn: $store.alwaysVisible)
                 .toggleStyle(.checkbox)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .help("Garder l'icône dans la barre des menus même sans disque")
 
             Button {
                 Task { await store.refresh() }
@@ -279,14 +300,9 @@ struct PanelView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .font(.caption)
             .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Button("Quitter") { NSApplication.shared.terminate(nil) }
-                .buttonStyle(.borderless)
-                .font(.caption)
+            .help("Actualiser la liste")
+            .accessibilityLabel("Actualiser")
         }
     }
 

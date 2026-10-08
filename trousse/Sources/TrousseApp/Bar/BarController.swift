@@ -57,7 +57,7 @@ final class BarController: NSObject, NSPopoverDelegate {
             let item = items[group.id] ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             items[group.id] = item
             guard let button = item.button else { continue }
-            button.image = symbol(group.symbol, fallback: "square.grid.2x2")
+            button.image = symbol(group.symbol, fallback: "square.grid.2x2", label: group.displayName)
             button.toolTip = group.displayName
             button.target = self
             button.action = #selector(toggle(_:))
@@ -69,7 +69,7 @@ final class BarController: NSObject, NSPopoverDelegate {
         if groups.isEmpty {
             if fallback == nil {
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-                item.button?.image = symbol("shippingbox", fallback: "gear")
+                item.button?.image = symbol("shippingbox", fallback: "gear", label: "Trousse")
                 item.button?.toolTip = "Trousse — aucun groupe"
                 item.button?.target = self
                 item.button?.action = #selector(openSettings)
@@ -134,9 +134,9 @@ final class BarController: NSObject, NSPopoverDelegate {
         }
     }
 
-    private func symbol(_ name: String, fallback: String) -> NSImage? {
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
-            ?? NSImage(systemSymbolName: fallback, accessibilityDescription: nil)
+    private func symbol(_ name: String, fallback: String, label: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: label)
+            ?? NSImage(systemSymbolName: fallback, accessibilityDescription: label)
         image?.isTemplate = true
         return image
     }

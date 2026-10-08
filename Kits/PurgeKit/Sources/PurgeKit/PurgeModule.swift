@@ -44,17 +44,21 @@ struct WindowToolPanel: View {
     let open: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: Espace.s) {
             Text(explanation)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if !state.isEmpty {
-                Text(state).font(.caption).foregroundStyle(.tertiary)
+                Text(state)
+                    .font(.subheadline.weight(.medium))
+                    .monospacedDigit()
             }
+            // Le seul geste du panneau : il ouvre la fenêtre, il ne supprime rien.
             Button(action, action: open)
                 .controlSize(.small)
+                .help("Ouvre la fenêtre de Purge")
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, Espace.panneau)
     }
 }

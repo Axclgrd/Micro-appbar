@@ -1,6 +1,12 @@
 import AppKit
+import Commun
 import QuickLookThumbnailing
 import SwiftUI
+
+private extension Metric {
+    /// Rayon d'une vignette ; celui de la tablette en découle (vignette + marge).
+    static let tileRadius: CGFloat = 12
+}
 
 /// La tablette.
 ///
@@ -13,6 +19,8 @@ struct ShelfView: View {
     let geometry: ShelfGeometry
     let link: ShelfLink
 
+    @Environment(\.accessibilityReduceTransparency) private var opaque
+
     var body: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: geometry.notchHeight)
@@ -23,7 +31,6 @@ struct ShelfView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .environment(\.colorScheme, .dark)
         .ignoresSafeArea()
     }
 
@@ -102,16 +109,39 @@ struct ShelfView: View {
             .animation(Motion.shift, value: tabletWidth)
     }
 
+    /// Rayon extérieur = rayon de la vignette + marge : les coins de la
+    /// tablette et ceux des vignettes restent concentriques (HIG, Layout).
     private var surface: some InsettableShape {
-        UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20, style: .continuous)
+        let radius = Metric.tileRadius + Metric.pad
+        return UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius,
+                                      style: .continuous)
+    }
+
+    /// La tablette est la seule couche fonctionnelle : elle flotte au-dessus
+    /// des autres apps, donc elle a droit au verre. Les vignettes restent du
+    /// contenu, posé dessus sans verre propre. « Réduire la transparence » la
+    /// remplace par un aplat opaque.
+    @ViewBuilder
+    private var backing: some View {
+        if opaque {
+            surface.fill(Color(nsColor: .windowBackgroundColor))
+            surface.strokeBorder(.separator, lineWidth: 1)
+        } else if #available(macOS 26, *) {
+            GlassEffectContainer {
+                Color.clear.verre(surface)
+            }
+        } else {
+            Color.clear.verre(surface)
+            surface.strokeBorder(.separator, lineWidth: 1)
+        }
     }
 
     private var board: some View {
         HStack(spacing: Metric.gap) {
             if slots.isEmpty {
-                Text("Montez un fichier jusqu'ici")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.42))
+                Label("Montez un fichier jusqu'ici", systemImage: "tray.and.arrow.down")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             } else {
                 ForEach(slots) { slot in
@@ -125,20 +155,21 @@ struct ShelfView: View {
         }
         .padding(Metric.pad)
         .frame(width: tabletWidth, height: Metric.shelfHeight)
-        .background {
-            surface.fill(.ultraThinMaterial)
-            surface.fill(Color.black.opacity(0.52))
-            surface.strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-        }
+        .background { backing }
         .animation(Motion.shift, value: slots.map(\.id))
     }
 
     /// La place qui se creuse sous le curseur.
+    ///
+    /// Teinte d'accent : c'est le retour de cible de dépôt attendu par la
+    /// charte — « ici, ça sera reçu » — et non un simple pointillé gris.
     private var hollow: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(Color.white.opacity(0.22),
+        RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
+            .fill(Color.accentColor.opacity(0.14))
+            .strokeBorder(Color.accentColor.opacity(0.7),
                           style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             .frame(width: Metric.tile, height: Metric.tile)
+            .accessibilityHidden(true)
     }
 
     private enum Slot: Identifiable {
@@ -162,6 +193,31 @@ struct ShelfView: View {
     }
 }
 
+// MARK: - Les gestes sur un objet
+
+/// Les mêmes gestes pour le menu contextuel, VoiceOver et le panneau.
+@MainActor
+enum ItemActions {
+    static func open(_ item: ShelfItem) {
+        guard !item.missing else { return }
+        NSWorkspace.shared.open(item.url)
+    }
+
+    static func reveal(_ item: ShelfItem) {
+        guard !item.missing else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([item.url])
+    }
+
+    static func copyPath(_ item: ShelfItem) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(item.url.path, forType: .string)
+    }
+
+    static func remove(_ item: ShelfItem) {
+        Shelf.shared.remove(item.id)
+    }
+}
+
 // MARK: - Un objet posé
 
 private struct ItemTile: View {
@@ -171,6 +227,7 @@ private struct ItemTile: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var image: NSImage?
+    @State private var hovering = false
 
     var body: some View {
         Group {
@@ -222,20 +279,32 @@ private struct ItemTile: View {
             preview
                 .frame(width: 40, height: 40)
             Text(item.name)
-                .font(.system(size: 9))
+                .font(.caption2)
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .foregroundStyle(item.missing ? Color.red.opacity(0.75) : .white.opacity(0.8))
+                .foregroundStyle(item.missing ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+                .padding(.horizontal, Espace.xs)
         }
         .frame(width: Metric.tile, height: Metric.tile)
         .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+            // Du contenu, pas du verre : une teinte qui s'éclaircit au survol.
+            RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
+                .fill(Color.primary.opacity(hovering || lifted ? 0.14 : 0.07))
         }
         .overlay {
             DragHandle(item: item, link: link)
         }
+        .onHover { hovering = $0 }
+        .animation(Motion.lift, value: hovering)
         .help(item.missing ? "\(item.url.path) — introuvable" : item.url.path)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item.name)
+        .accessibilityValue(item.missing ? "introuvable" : "")
+        .accessibilityHint(item.missing ? "" : "Glissez pour déposer ailleurs, ou ouvrez avec les actions.")
+        .accessibilityAction(named: "Ouvrir") { ItemActions.open(item) }
+        .accessibilityAction(named: "Afficher dans le Finder") { ItemActions.reveal(item) }
+        .accessibilityAction(named: "Copier le chemin") { ItemActions.copyPath(item) }
+        .accessibilityAction(named: "Retirer de l'étagère") { ItemActions.remove(item) }
     }
 
     @ViewBuilder
@@ -243,7 +312,7 @@ private struct ItemTile: View {
         if item.missing {
             Image(systemName: "questionmark.square.dashed")
                 .font(.system(size: 26))
-                .foregroundStyle(Color.red.opacity(0.7))
+                .foregroundStyle(.red)
         } else if let image {
             Image(nsImage: image)
                 .resizable()
@@ -251,7 +320,7 @@ private struct ItemTile: View {
         } else {
             Image(systemName: "doc")
                 .font(.system(size: 24))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(.tertiary)
         }
     }
 }
@@ -371,6 +440,7 @@ final class DragHandleView: NSView, NSDraggingSource {
             menu.addItem(withTitle: "Afficher dans le Finder", action: #selector(revealItem), keyEquivalent: "")
             menu.addItem(.separator())
         }
+        menu.addItem(withTitle: "Copier le chemin", action: #selector(copyItemPath), keyEquivalent: "")
         menu.addItem(withTitle: "Retirer de l'étagère", action: #selector(removeItem), keyEquivalent: "")
         for entry in menu.items { entry.target = self }
         return menu
@@ -384,6 +454,11 @@ final class DragHandleView: NSView, NSDraggingSource {
     @objc private func revealItem() {
         guard let item else { return }
         NSWorkspace.shared.activateFileViewerSelecting([item.url])
+    }
+
+    @objc private func copyItemPath() {
+        guard let item else { return }
+        MainActor.assumeIsolated { ItemActions.copyPath(item) }
     }
 
     @objc private func removeItem() {

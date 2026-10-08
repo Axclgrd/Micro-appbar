@@ -104,9 +104,23 @@ final class Config {
         groups.first { $0.modules.contains(id) }
     }
 
-    func addGroup() {
-        groups.append(MenuGroup(name: "Nouveau groupe", symbol: "square.grid.2x2", modules: []))
+    @discardableResult
+    func addGroup() -> UUID {
+        let group = MenuGroup(name: "Nouveau groupe", symbol: "square.grid.2x2", modules: [])
+        groups.append(group)
         save()
+        return group.id
+    }
+
+    /// Réordonne les groupes par glisser-déposer.
+    func moveGroups(from source: IndexSet, to destination: Int) {
+        groups.move(fromOffsets: source, toOffset: destination)
+        save()
+    }
+
+    /// Réordonne les outils d'un groupe par glisser-déposer.
+    func moveModules(in group: MenuGroup, from source: IndexSet, to destination: Int) {
+        update(group) { $0.modules.move(fromOffsets: source, toOffset: destination) }
     }
 
     func removeGroup(_ group: MenuGroup) {

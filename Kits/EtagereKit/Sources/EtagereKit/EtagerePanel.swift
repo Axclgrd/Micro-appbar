@@ -1,4 +1,5 @@
 import AppKit
+import Commun
 import SwiftUI
 
 /// Le panneau de réglages.
@@ -10,94 +11,80 @@ struct EtagerePanel: View {
     let shelf: Shelf
     let reveal: () -> Void
 
+    private var enabled: Binding<Bool> {
+        Binding(get: { shelf.enabled }, set: { shelf.enabled = $0 })
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Espace.m) {
             header
-            Divider()
-            if shelf.items.isEmpty { empty } else { list }
-            Divider()
+            if !shelf.items.isEmpty { list }
+            Groupe {
+                Toggle("Étagère active", isOn: enabled)
+                    .toggleStyle(.switch)
+            }
             footer
         }
-        .padding(14)
+        .padding(Espace.panneau)
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: shelf.items.isEmpty ? "tray" : "tray.full")
-                .font(.title2)
-                .foregroundStyle(shelf.items.isEmpty ? Color.secondary : .green)
-                .frame(width: 26)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(shelf.items.isEmpty ? "Étagère vide" : "\(shelf.items.count) objet\(shelf.items.count > 1 ? "s" : "")")
-                    .font(.headline)
-                Text("Sous l'encoche. Montez un fichier jusqu'en haut de l'écran, lâchez.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var empty: some View {
-        Toggle("Étagère active", isOn: Binding(
-            get: { shelf.enabled },
-            set: { shelf.enabled = $0 }))
-            .toggleStyle(.switch)
-            .controlSize(.small)
+        EnTete(
+            symbole: shelf.items.isEmpty ? "tray" : "tray.full",
+            teinte: shelf.items.isEmpty ? .secondary : .accentColor,
+            titre: shelf.items.isEmpty
+                ? "Étagère vide"
+                : (shelf.items.count > 1 ? "\(shelf.items.count) objets" : "1 objet"),
+            detail: "Sous l'encoche. Montez un fichier jusqu'en haut de l'écran, lâchez.")
     }
 
     private var list: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        Groupe {
             ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     ForEach(shelf.items) { item in row(item) }
                 }
             }
             .frame(maxHeight: 180)
 
             HStack {
-                Toggle("Active", isOn: Binding(
-                    get: { shelf.enabled },
-                    set: { shelf.enabled = $0 }))
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
                 Spacer()
-                Button("Tout retirer") { shelf.removeAll() }
+                Button("Tout retirer", role: .destructive) { shelf.removeAll() }
                     .controlSize(.small)
             }
         }
     }
 
     private func row(_ item: ShelfItem) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Espace.s) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                 .resizable()
-                .frame(width: 18, height: 18)
+                .frame(width: 20, height: 20)
                 .opacity(item.missing ? 0.4 : 1)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(item.name)
-                    .font(.caption)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .strikethrough(item.missing)
                 if item.missing {
                     Text("introuvable")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.red)
                 }
             }
-            Spacer(minLength: 4)
+            Spacer(minLength: Espace.xs)
 
             if !item.missing {
                 Button {
-                    NSWorkspace.shared.activateFileViewerSelecting([item.url])
+                    ItemActions.reveal(item)
                 } label: {
                     Image(systemName: "magnifyingglass")
                 }
                 .buttonStyle(.borderless)
                 .help("Afficher dans le Finder")
+                .accessibilityLabel("Afficher dans le Finder")
             }
 
             Button {
@@ -108,30 +95,42 @@ struct EtagerePanel: View {
             }
             .buttonStyle(.borderless)
             .help("Retirer de l'étagère")
+            .accessibilityLabel("Retirer de l'étagère")
+        }
+        .padding(.horizontal, Espace.xs)
+        .padding(.vertical, 2)
+        .survol()
+        .contextMenu {
+            if !item.missing {
+                Button("Ouvrir") { ItemActions.open(item) }
+                Button("Afficher dans le Finder") { ItemActions.reveal(item) }
+            }
+            Button("Copier le chemin") { ItemActions.copyPath(item) }
+            Divider()
+            Button("Retirer de l'étagère") { shelf.remove(item.id) }
         }
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Espace.s) {
             if let refusal = shelf.lastRefusal {
-                Text(refusal)
-                    .font(.caption2)
+                Label(refusal, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Text("Une image ou un texte sans fichier derrière lui est écrit dans un dépôt, pour qu'il soit encore là au prochain démarrage.")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Montrer la tablette", action: reveal)
-                    .controlSize(.small)
+                Button("Ouvrir le dépôt") {
+                    let depot = Shelf.depot
+                    try? FileManager.default.createDirectory(at: depot, withIntermediateDirectories: true)
+                    NSWorkspace.shared.open(depot)
+                }
                 Spacer()
-            }
-            Button("Ouvrir le dépôt") {
-                let depot = Shelf.depot
-                try? FileManager.default.createDirectory(at: depot, withIntermediateDirectories: true)
-                NSWorkspace.shared.open(depot)
             }
             .controlSize(.small)
         }
