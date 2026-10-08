@@ -73,3 +73,7 @@ Les apps n'écrivent jamais dans la SMC sans le démon, et le démon remet le mo
 - Ne publie rien (push, release) sans demande explicite de l'utilisateur.
 - Après toute personnalisation, rebuild l'app concernée seulement, pas tout.
 - En cas d'échec de build, montre l'erreur réelle de `swift build` et ne retombe pas sur une signature ad hoc sans le dire.
+
+## Design
+
+Toute modification d'interface suit le skill `.claude/skills/apple-hig/` (HIG d'Apple + Liquid Glass, sources en texte exact dans `sources/`) et le vocabulaire partagé `Kits/Commun/Sources/Commun/Design.swift`. Le verre n'est utilisé que sur la couche fonctionnelle, avec repli matériau avant macOS 26.
