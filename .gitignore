@@ -2,3 +2,6 @@
 .build/
 build/
 *.xcodeproj
+
+# Skill de design : usage personnel, ne pas publier
+.claude/skills/apple-hig/
