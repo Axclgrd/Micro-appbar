@@ -16,6 +16,8 @@ let package = Package(
         .package(path: "../Kits/BandeKit"),
         .package(path: "../Kits/PurgeKit"),
         .package(path: "../Kits/FanKit"),
+        .package(path: "../Kits/FonteKit"),
+        .package(path: "../Kits/JaugeKit"),
     ],
     targets: [
         .executableTarget(
@@ -23,6 +25,7 @@ let package = Package(
             dependencies: [
                 "Commun", "PortsKit", "EveilKit", "EjecterKit",
                 "GrabKit", "BandeKit", "PurgeKit", "FanKit", "EtagereKit",
+                "FonteKit", "JaugeKit",
             ])
     ]
 )

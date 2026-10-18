@@ -11,7 +11,7 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 
-TOUTES=(trousse fancontrole ejecter purge eveil grab ports bande etagere)
+TOUTES=(trousse fancontrole ejecter purge eveil grab fonte jauge ports bande etagere)
 choix=(); sans=(); simulation=0
 while [[ $# -gt 0 ]]; do
   case "$1" in

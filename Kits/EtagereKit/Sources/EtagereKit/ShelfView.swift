@@ -274,7 +274,9 @@ private struct ItemTile: View {
         var shade: Double = 0
     }
 
-    private var face: some View {
+    // Découpée en trois : d'un seul tenant, l'expression dépassait le temps
+    // que le compilateur accorde à la vérification des types.
+    private var label: some View {
         VStack(spacing: 4) {
             preview
                 .frame(width: 40, height: 40)
@@ -285,26 +287,40 @@ private struct ItemTile: View {
                 .foregroundStyle(item.missing ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
                 .padding(.horizontal, Espace.xs)
         }
-        .frame(width: Metric.tile, height: Metric.tile)
-        .background {
-            // Du contenu, pas du verre : une teinte qui s'éclaircit au survol.
-            RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
-                .fill(Color.primary.opacity(hovering || lifted ? 0.14 : 0.07))
-        }
-        .overlay {
-            DragHandle(item: item, link: link)
-        }
-        .onHover { hovering = $0 }
-        .animation(Motion.lift, value: hovering)
-        .help(item.missing ? "\(item.url.path) — introuvable" : item.url.path)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item.name)
-        .accessibilityValue(item.missing ? "introuvable" : "")
-        .accessibilityHint(item.missing ? "" : "Glissez pour déposer ailleurs, ou ouvrez avec les actions.")
-        .accessibilityAction(named: "Ouvrir") { ItemActions.open(item) }
-        .accessibilityAction(named: "Afficher dans le Finder") { ItemActions.reveal(item) }
-        .accessibilityAction(named: "Copier le chemin") { ItemActions.copyPath(item) }
-        .accessibilityAction(named: "Retirer de l'étagère") { ItemActions.remove(item) }
+    }
+
+    /// Du contenu, pas du verre : une teinte qui s'éclaircit au survol.
+    private var tileBackground: some View {
+        let shade: Double = hovering || lifted ? 0.14 : 0.07
+        return RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
+            .fill(Color.primary.opacity(shade))
+    }
+
+    private var tile: some View {
+        label
+            .frame(width: Metric.tile, height: Metric.tile)
+            .background { tileBackground }
+            .overlay {
+                DragHandle(item: item, link: link)
+            }
+            .onHover { hovering = $0 }
+            .animation(Motion.lift, value: hovering)
+    }
+
+    private var face: some View {
+        let help: String = item.missing ? "\(item.url.path) — introuvable" : item.url.path
+        let value: String = item.missing ? "introuvable" : ""
+        let hint: String = item.missing ? "" : "Glissez pour déposer ailleurs, ou ouvrez avec les actions."
+        return tile
+            .help(help)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(item.name)
+            .accessibilityValue(value)
+            .accessibilityHint(hint)
+            .accessibilityAction(named: "Ouvrir") { ItemActions.open(item) }
+            .accessibilityAction(named: "Afficher dans le Finder") { ItemActions.reveal(item) }
+            .accessibilityAction(named: "Copier le chemin") { ItemActions.copyPath(item) }
+            .accessibilityAction(named: "Retirer de l'étagère") { ItemActions.remove(item) }
     }
 
     @ViewBuilder

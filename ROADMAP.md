@@ -13,6 +13,15 @@ centaines de lignes, et ne tourne que quand on le regarde.
 - [x] **purge** — récupère l'espace disque des artefacts de build, en expliquant l'impact de chaque suppression
 - [x] **eveil** — empêcher la veille, avec une fin prévue : durée, ou fermeture d'une app désignée
 - [x] **grab** — raccourci → sélection à l'écran → texte OCR dans le presse-papier
+- [x] **jauge** — la consommation de l'abonnement Claude, session de 5 h et semaine,
+      en anneaux et en badge dans la barre de menus, avec le rythme (« pleine vers
+      17 h 40 ») et des alertes à 80, 90 et 100 %. Les chiffres viennent de la ligne
+      d'état de Claude Code, ou d'un relevé Haiku minuscule (0,0002 $) quand elle se tait.
+- [x] **fonte** — raccourci → sélection à l'écran → Claude reconnaît la police : propositions
+      classées avec leur probabilité, les lettres qui les désignent, un aperçu dans la
+      vraie police, et sur demande une vérification ligne sous ligne contre les fichiers
+      de Google Fonts et Fontshare. L'analyse passe par
+      Claude Code, déjà présent sur chaque Mac de la famille : aucune clé à saisir.
 - [x] **trousse** — l'app centrale : elle tient la barre du haut, on y compose les
       groupes d'outils et ce qui reste masqué (macOS 26+, verre liquide natif).
       Les sept outils y sont entrés, et chacun garde son app autonome.

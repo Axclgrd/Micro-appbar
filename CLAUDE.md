@@ -13,6 +13,8 @@ Quand l'utilisateur te demande « installe les apps » sur un Mac, suis ce guide
 | `purge` | Purge | Libère l'espace des artefacts de build | 14 | |
 | `eveil` | Eveil | Empêche la veille avec une fin prévue | 14 | |
 | `grab` | Grab | Sélection écran → OCR → presse-papier | 14 | Enregistrement d'écran + raccourci |
+| `fonte` | Fonte | Sélection écran → police reconnue par Claude, vérifiée sur les vraies polices | 14 | Enregistrement d'écran + raccourci, exige Claude Code et le réseau (Google Fonts, Fontshare) |
+| `jauge` | Jauge | Consommation de l'abonnement Claude (session 5 h, semaine) et alertes | 14 | Branche la ligne d'état de Claude Code (voir étape 7) |
 | `ports` | Ports | Qui tourne sur le port 3000 | 14 | |
 | `bande` | Bande | Vidéo → audio / transcription locale | 14 | |
 | `etagere` | Etagere | Tablette de fichiers sous l'encoche | 14 | Plutôt pour un Mac avec encoche |
@@ -30,6 +32,8 @@ Quand l'utilisateur te demande « installe les apps » sur un Mac, suis ce guide
 7. **Autorisations** (Réglages système › Confidentialité) : à guider à la main, aucune ne s'accorde par script.
    - Grab : Enregistrement d'écran, Accessibilité si le raccourci global ne répond pas.
    - Ejecter / Purge : Accès complet au disque si des dossiers sont refusés.
+   - Fonte : Enregistrement d'écran. L'analyse passe par Claude Code (`claude -p`), qui doit être connecté : lance `claude` une fois dans Terminal si Fonte signale un refus.
+   - Jauge : demande l'accord de l'utilisateur, puis `/Applications/Jauge.app/Contents/MacOS/Jauge --brancher`. Cela ajoute `statusLine` à `~/.claude/settings.json` (copie gardée dans `settings.json.avant-jauge`) ; si une autre ligne d'état existe, Jauge refuse d'y toucher. Notifications : à autoriser au premier lancement.
 8. **Vérification** : relance `./scripts/diagnostic.sh`, toutes les apps voulues doivent apparaître cochées. Vérifie qu'elles sont lancées dans la barre de menus.
 
 ## Pièges connus

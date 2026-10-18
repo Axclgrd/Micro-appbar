@@ -81,15 +81,16 @@ public enum ThermalVerdict: Sendable {
 
 public struct ThermalSensors {
 
-    /// Clusters de cœurs performance (P) — MacBook Pro M2 Pro.
+    /// Clusters de cœurs performance (P) — MacBook Pro M1 Pro / M2 Pro.
     static let performanceCoreKeys = [
         "Tp01", "Tp05", "Tp09", "Tp0D", "Tp0H", "Tp0L",
         "Tp0P", "Tp0T", "Tp0X", "Tp0b", "Tp0f", "Tp0j",
     ]
     /// Cœurs efficience (E).
     static let efficiencyCoreKeys = ["Te02", "Te06", "Te0A", "Te0E"]
-    /// GPU.
-    static let gpuKeys = ["Tg0f", "Tg0j", "Tg0n", "Tg0r"]
+    /// GPU. `Tg0f…Tg0r` : M2 Pro ; `Tg05`, `Tg0D` : M1 Pro (relevées sur
+    /// MacBookPro18,3, elles varient bien avec la charge).
+    static let gpuKeys = ["Tg0f", "Tg0j", "Tg0n", "Tg0r", "Tg05", "Tg0D"]
     /// Batterie.
     static let batteryKeys = ["TB1T", "TB2T"]
     /// Châssis / repose-poignets — le capteur qui correspond à ce que tu sens.

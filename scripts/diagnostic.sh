@@ -44,7 +44,15 @@ case "$nom$modele" in
 esac
 echo
 
+echo "== Claude Code (analyse de Fonte) =="
+claude_bin=""
+for c in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" /opt/homebrew/bin/claude /usr/local/bin/claude; do
+  [ -x "$c" ] && { claude_bin=$c; break; }
+done
+if [ -n "$claude_bin" ]; then echo "Claude Code  : OK ($claude_bin)"; else echo "Claude Code  : absent → Fonte installable, mais sans analyse"; fi
+echo
+
 echo "== Apps déjà installées =="
-for a in FanControl Ejecter Purge Eveil Grab Trousse Ports Bande Etagere; do
+for a in FanControl Ejecter Purge Eveil Grab Fonte Jauge Trousse Ports Bande Etagere; do
   [ -d "/Applications/$a.app" ] && echo "  ✓ $a" || echo "  · $a"
 done

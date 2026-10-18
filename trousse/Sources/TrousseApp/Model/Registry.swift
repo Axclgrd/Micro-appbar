@@ -4,7 +4,9 @@ import EjecterKit
 import EtagereKit
 import EveilKit
 import FanKit
+import FonteKit
 import GrabKit
+import JaugeKit
 import PortsKit
 import PurgeKit
 import SwiftUI
@@ -32,6 +34,8 @@ final class Registry {
             BandeModule(),
             EtagereModule(),
             GrabModule(),
+            FonteModule(),
+            JaugeModule(),
         ]
     }
 

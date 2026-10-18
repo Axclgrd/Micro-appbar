@@ -90,7 +90,7 @@ final class Config {
             MenuGroup(name: "Machine", symbol: "gauge.with.dots.needle.33percent",
                       modules: ["fancontrole", "ejecter", "eveil"]),
             MenuGroup(name: "Travail", symbol: "wrench.and.screwdriver",
-                      modules: ["ports", "purge", "bande", "etagere"]),
+                      modules: ["ports", "purge", "bande", "etagere", "fonte", "jauge"]),
         ]
     }
 
