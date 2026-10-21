@@ -49,6 +49,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>LSMinimumSystemVersion</key>    <string>26.0</string>
     <key>LSApplicationCategoryType</key> <string>public.app-category.utilities</string>
     <key>NSHighResolutionCapable</key>   <true/>
+    <key>NSAppleEventsUsageDescription</key><string>Trousse met Apple Music en pause quand le micro des AirPods est utilisé, puis la reprend.</string>
+    <key>NSAudioCaptureUsageDescription</key><string>Trousse lisse le volume du son du Mac (mode nuit) en le capturant brièvement.</string>
     <!-- Agent : pas d'icône dans le Dock, pas de menu applicatif. -->
     <key>LSUIElement</key>               <true/>
 </dict>

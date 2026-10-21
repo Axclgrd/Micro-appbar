@@ -7,6 +7,9 @@ import FanKit
 import FonteKit
 import GrabKit
 import JaugeKit
+import MajKit
+import NuitKit
+import PauseKit
 import PortsKit
 import PurgeKit
 import SwiftUI
@@ -36,6 +39,9 @@ final class Registry {
             GrabModule(),
             FonteModule(),
             JaugeModule(),
+            PauseModule(),
+            MajModule(),
+            NuitModule(),
         ]
     }
 
