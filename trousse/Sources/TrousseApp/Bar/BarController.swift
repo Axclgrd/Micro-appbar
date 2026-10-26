@@ -21,6 +21,7 @@ final class BarController: NSObject, NSPopoverDelegate {
 
     private var popover: NSPopover?
     private var shown: UUID?
+    private let ailleurs = ClicAilleurs()
 
     func start() {
         rebuild()
@@ -155,12 +156,12 @@ final class BarController: NSObject, NSPopoverDelegate {
         panel.behavior = .transient
         panel.animates = true
         panel.delegate = self
-        panel.contentViewController = NSHostingController(
-            rootView: GroupPanel(group: group).frame(width: 300))
-        panel.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+        panel.contentViewController = HotePopover.controleur(GroupPanel(group: group), largeur: 300)
+        HotePopover.ouvrir(panel, sur: sender)
 
         popover = panel
         shown = id
+        ailleurs.surveiller { [weak self] in self?.close() }
         // Un outil ne sonde que pendant qu'on le regarde.
         for module in Config.shared.modules(of: group) { module.activate() }
     }
@@ -195,11 +196,11 @@ final class BarController: NSObject, NSPopoverDelegate {
         panel.behavior = .transient
         panel.animates = true
         panel.delegate = self
-        panel.contentViewController = NSHostingController(
-            rootView: GroupPanel(group: group, initial: moduleID).frame(width: 300))
-        panel.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        panel.contentViewController = HotePopover.controleur(GroupPanel(group: group, initial: moduleID), largeur: 300)
+        HotePopover.ouvrir(panel, sur: button)
         popover = panel
         shown = group.id
+        ailleurs.surveiller { [weak self] in self?.close() }
         for module in Config.shared.modules(of: group) { module.activate() }
         Registry.shared.module(moduleID)?.activate()
     }
@@ -209,6 +210,7 @@ final class BarController: NSObject, NSPopoverDelegate {
     }
 
     private func close() {
+        ailleurs.arreter()
         if let id = shown, let group = Config.shared.groups.first(where: { $0.id == id }) {
             for module in Config.shared.modules(of: group) { module.idle() }
         }
@@ -219,6 +221,7 @@ final class BarController: NSObject, NSPopoverDelegate {
 
     nonisolated func popoverDidClose(_ notification: Notification) {
         Task { @MainActor [weak self] in
+            self?.ailleurs.arreter()
             guard let self, let id = shown,
                   let group = Config.shared.groups.first(where: { $0.id == id }) else { return }
             for module in Config.shared.modules(of: group) { module.idle() }

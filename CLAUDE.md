@@ -15,6 +15,8 @@ Quand l'utilisateur te demande « installe les apps » sur un Mac, suis ce guide
 | `grab` | Grab | Sélection écran → OCR → presse-papier | 14 | Enregistrement d'écran + raccourci |
 | `fonte` | Fonte | Sélection écran → police reconnue par Claude, vérifiée sur les vraies polices | 14 | Enregistrement d'écran + raccourci, exige Claude Code et le réseau (Google Fonts, Fontshare) |
 | `jauge` | Jauge | Consommation de l'abonnement Claude (session 5 h, semaine) et alertes | 14 | Branche la ligne d'état de Claude Code (voir étape 7) |
+| `pouls` | Pouls | Ce qui consomme processeur, mémoire, disque et réseau, par application | 14 | Aucune autorisation |
+| `melangeur` | Mélangeur | Volume et sortie de chaque application, plus sorties, entrées et alertes | **14.2** | Enregistrement audio du système (taps CoreAudio) |
 | `ports` | Ports | Qui tourne sur le port 3000 | 14 | |
 | `bande` | Bande | Vidéo → audio / transcription locale | 14 | |
 | `etagere` | Etagere | Tablette de fichiers sous l'encoche | 14 | Plutôt pour un Mac avec encoche |
@@ -33,6 +35,7 @@ Quand l'utilisateur te demande « installe les apps » sur un Mac, suis ce guide
    - Grab : Enregistrement d'écran, Accessibilité si le raccourci global ne répond pas.
    - Ejecter / Purge : Accès complet au disque si des dossiers sont refusés.
    - Fonte : Enregistrement d'écran. L'analyse passe par Claude Code (`claude -p`), qui doit être connecté : lance `claude` une fois dans Terminal si Fonte signale un refus.
+   - Mélangeur : Enregistrement audio du système. Demandée au premier réglage d'une application (bouton « Autoriser » dans le panneau). Dans Trousse, c'est Trousse qui la reçoit. Sans elle, sorties, entrées et alertes marchent quand même ; seul le volume par application est désactivé.
    - Jauge : demande l'accord de l'utilisateur, puis `/Applications/Jauge.app/Contents/MacOS/Jauge --brancher`. Cela ajoute `statusLine` à `~/.claude/settings.json` (copie gardée dans `settings.json.avant-jauge`) ; si une autre ligne d'état existe, Jauge refuse d'y toucher. Notifications : à autoriser au premier lancement.
 8. **Vérification** : relance `./scripts/diagnostic.sh`, toutes les apps voulues doivent apparaître cochées. Vérifie qu'elles sont lancées dans la barre de menus.
 
@@ -46,6 +49,9 @@ Quand l'utilisateur te demande « installe les apps » sur un Mac, suis ce guide
 2. **Dossier avec espace** : le disque s'appelle parfois « My Passport ». Toujours mettre les chemins entre guillemets.
 3. **Démon ventilateurs** : `fancontrold` tourne en root (LaunchDaemon `local.fancontrold`, socket `/var/run/fancontrold.sock`, journal `/var/log/fancontrold.log`). Retrait : `./fancontrole/uninstall.sh`, les ventilateurs repassent en auto.
 4. **App déjà lancée** : `build.sh --install` ferme l'ancienne instance avant de remplacer le bundle, c'est normal.
+5. **Mélangeur et Nuit** : les deux posent des taps audio. Nuit exclut de sa prise globale les apps que Mélangeur règle (sinon on les entendrait en double), donc une app réglée dans Mélangeur échappe au mode nuit. C'est voulu, pas une panne.
+6. **Sites web** : un navigateur fait jouer tous ses onglets par un seul processus audio (WebKit, ou l'« Audio Service » de Chrome). macOS ne permet pas de séparer les sites : ils se règlent avec leur navigateur.
+7. **Banc d'essai du Mélangeur** : `Kits/MelangeurKit/essai.sh gain` mesure le gain réel sur un son de test, `essai.sh modele` rejoue tout le cycle (réglage, mémoire, relance, contenu protégé). Il demande sa propre autorisation audio, à part de l'app.
 
 ## Adaptation selon le Mac
 
@@ -54,6 +60,7 @@ C'est ici que tu personnalises. Lis `diagnostic.sh` et décide :
 - **MacBook Air** : aucun ventilateur. N'installe pas `fancontrole` (`install.sh` l'ignore déjà).
 - **Mac sans encoche** (Mac mini, Mac Studio, iMac, MacBook Air/Pro avant 2021) : `etagere` est peu utile, propose de la sauter.
 - **macOS < 26** : pas de `trousse` (verre liquide natif), les autres apps marchent dès macOS 14.
+- **macOS < 14.2** : pas de `melangeur` (les taps audio arrivent en 14.2, `install.sh` l'ignore déjà).
 - **macOS < 14** : rien ne se compile, dis-le à l'utilisateur.
 - **Intel** : non testé. Compile, mais FanControl s'appuie sur des clés SMC Apple Silicon. Préviens.
 

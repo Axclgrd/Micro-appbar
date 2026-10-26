@@ -25,6 +25,22 @@ centaines de lignes, et ne tourne que quand on le regarde.
 - [x] **trousse** — l'app centrale : elle tient la barre du haut, on y compose les
       groupes d'outils et ce qui reste masqué (macOS 26+, verre liquide natif).
       Les sept outils y sont entrés, et chacun garde son app autonome.
+- [x] **pouls** — ce qui consomme la machine : charge processeur, pression mémoire,
+      espace disque et débit réseau, puis le classement des applications — regroupées
+      par bundle, pas éparpillées en trente « Helper (Renderer) » — selon le
+      processeur, la mémoire ou le disque. Trois conseils au plus, tirés des valeurs
+      du relevé : qui fermer, ce que ça rendrait, et pourquoi le Mac rame. La part de
+      processeur des démons de root, illisible sans privilèges, est annoncée sous
+      « Système » plutôt que passée sous silence.
+- [x] **mélangeur** — chaque application à son volume (0 à 200 %, l'unité aux trois
+      quarts de la course comme sur une console), coupée ou envoyée vers une autre
+      sortie ; et sur le même panneau, les sorties (volume, balance, fréquence), les
+      entrées (avec qui écoute le micro) et les alertes. Un tap CoreAudio par app
+      réglée, rien à 100 % : pas de latence ajoutée tant qu'on ne touche à rien.
+      Réglages mémorisés par app, réappliqués à sa relance. Un son protégé (DRM),
+      qu'aucun tap ne peut lire, est rendu à son volume d'origine plutôt que coupé.
+      Les sites web se règlent avec leur navigateur : macOS les fait tous jouer par
+      un seul processus.
 - [x] **ports** — qu'est-ce qui tourne sur le 3000 : le process, le projet, depuis
       quand, ce que l'arrêter coûte, et un QR pour ouvrir le site sur le téléphone
 - [x] **transcription** — troisième sortie de `bande`, en tête et par défaut : une
@@ -60,7 +76,9 @@ centaines de lignes, et ne tourne que quand on le regarde.
       compression PDF, et la lecture des conteneurs que macOS ignore (mkv, webm).
       Demande ffmpeg embarqué — soixante-dix mégaoctets, à peser.
 - [ ] **Résidus** — désinstalleur qui traque ce qui reste dans `~/Library`
-- [ ] **Réveil** — qui consomme le réseau, et quel process réveille le Mac la nuit (`pmset -g log`)
+- [ ] **Réveil** — quel process réveille le Mac la nuit (`pmset -g log`). Le débit
+      réseau global est déjà dans **pouls** ; le répartir par application demande
+      `nettop`, donc root, ce qui reste à trancher.
 
 ## Écarté (déjà natif)
 

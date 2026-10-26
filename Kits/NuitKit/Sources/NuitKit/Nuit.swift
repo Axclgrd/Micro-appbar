@@ -1,5 +1,6 @@
 import AppKit
 import Commun
+import CoreAudio
 import Foundation
 import Observation
 
@@ -71,6 +72,7 @@ final class Nuit {
     private var dernierAppel = 0
     private var arrets = 0
     private var observateur: NSObjectProtocol?
+    private var exclusions: NSObjectProtocol?
 
     init() {
         let d = Shared.defaults
@@ -84,6 +86,12 @@ final class Nuit {
         observateur = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [prise] _ in
             prise.arreter()
+        }
+        // Le mélangeur reprend ou rend une application : la prise globale
+        // doit l'exclure ou la recapter, sinon on l'entendrait en double.
+        exclusions = NotificationCenter.default.addObserver(
+            forName: CoordinationAudio.changement, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.exclusionsChangees() }
         }
     }
 
@@ -120,7 +128,8 @@ final class Nuit {
         avertissement = ""
         silences = 0
         do {
-            try prise.demarrer()
+            try prise.demarrer(exclus: CoordinationAudio.repris.map { AudioObjectID($0) })
+            CoordinationAudio.nuitActive = true
             sortie = prise.nomSortie
             latenceMaterielMs = prise.latenceMaterielMs
             etat = .enAttente
@@ -135,6 +144,7 @@ final class Nuit {
         veille?.cancel(); veille = nil
         relance?.cancel(); relance = nil
         prise.arreter()
+        CoordinationAudio.nuitActive = false
         etat = vers
         if actif {
             bascule = true
@@ -156,6 +166,19 @@ final class Nuit {
             try? await Task.sleep(for: .milliseconds(700))
             guard !Task.isCancelled, let self, self.actif else { return }
             self.arrets += 1
+            self.demarrer()
+        }
+    }
+
+    /// L'ensemble des processus repris par le mélangeur a changé. Le tap
+    /// global ne se modifie pas en place : on le reconstruit, vite, sans
+    /// l'attente qu'impose un changement de sortie.
+    private func exclusionsChangees() {
+        guard actif, prise.estActive else { return }
+        relance?.cancel()
+        relance = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, let self, self.actif else { return }
             self.demarrer()
         }
     }

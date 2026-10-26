@@ -65,15 +65,18 @@ public final class PriseSysteme: @unchecked Sendable {
 
     // MARK: - Démarrage
 
-    public func demarrer(tampon: UInt32 = 128) throws {
+    /// `exclus` : des processus que quelqu'un d'autre rejoue déjà — le
+    /// mélangeur, qui les a repris à son propre volume. Les capter ici aussi
+    /// les ferait entendre deux fois. Voir `CoordinationAudio`.
+    public func demarrer(tampon: UInt32 = 128, exclus: [AudioObjectID] = []) throws {
         arreter()
-        do { try monter(tampon: tampon) } catch {
+        do { try monter(tampon: tampon, exclus: exclus) } catch {
             arreter()
             throw error
         }
     }
 
-    private func monter(tampon: UInt32) throws {
+    private func monter(tampon: UInt32, exclus: [AudioObjectID]) throws {
         let systeme = AudioObjectID(kAudioObjectSystemObject)
 
         // Sortie par défaut.
@@ -87,7 +90,7 @@ public final class PriseSysteme: @unchecked Sendable {
 
         // Le tap. `.mutedWhenTapped` : le son d'origine est coupé tant que
         // notre IOProc tourne, et revient dès que le tap disparaît.
-        let desc = CATapDescription(stereoGlobalTapButExcludeProcesses: [moi])
+        let desc = CATapDescription(stereoGlobalTapButExcludeProcesses: [moi] + exclus.filter { $0 != moi })
         desc.name = "Nuit"
         desc.uuid = UUID()
         desc.isPrivate = true

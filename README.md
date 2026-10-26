@@ -1,7 +1,8 @@
 # Micro-app
 
 Petits utilitaires macOS en Swift + SwiftUI, sans dépendance : ventilateurs, éjection de disques,
-espace disque, veille, OCR, reconnaissance de polices, consommation Claude, ports, audio, étagère de fichiers, le tout regroupé dans une barre de menus (Trousse).
+espace disque, veille, OCR, reconnaissance de polices, consommation Claude, ports, audio, étagère de fichiers,
+ce qui consomme la machine, le volume de chaque application, le tout regroupé dans une barre de menus (Trousse).
 Voir [ROADMAP.md](ROADMAP.md) pour le détail de chaque outil.
 
 ## Installation avec Claude (recommandé)
@@ -18,7 +19,7 @@ pour les autorisations. Il adapte aussi FanControl aux capteurs de ton Mac.
 
 ## Installation à la main
 
-Prérequis : macOS 14+ (26+ pour Trousse), Command Line Tools (`xcode-select --install`).
+Prérequis : macOS 14+ (14.2+ pour Mélangeur, 26+ pour Trousse), Command Line Tools (`xcode-select --install`).
 
 ```
 ./scripts/diagnostic.sh        # profil du Mac

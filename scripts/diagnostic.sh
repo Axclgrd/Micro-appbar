@@ -30,6 +30,8 @@ echo
 
 echo "== Compatibilité par app =="
 echo "Trousse      : $([ "$major" -ge 26 ] && echo OK || echo "IGNORER (exige macOS 26+, ici $macos)")"
+minor=$(echo "$macos" | cut -d. -f2)
+echo "Mélangeur    : $([ "$major" -gt 14 ] || { [ "$major" -eq 14 ] && [ "${minor:-0}" -ge 2 ]; } && echo OK || echo "IGNORER (exige macOS 14.2+, taps audio)")"
 echo "Autres apps  : $([ "$major" -ge 14 ] && echo OK || echo "IGNORER (exige macOS 14+)")"
 echo
 
@@ -53,6 +55,6 @@ if [ -n "$claude_bin" ]; then echo "Claude Code  : OK ($claude_bin)"; else echo 
 echo
 
 echo "== Apps déjà installées =="
-for a in FanControl Ejecter Purge Eveil Grab Fonte Jauge Trousse Ports Bande Etagere; do
+for a in FanControl Pouls Melangeur Ejecter Purge Eveil Grab Fonte Jauge Trousse Ports Bande Etagere; do
   [ -d "/Applications/$a.app" ] && echo "  ✓ $a" || echo "  · $a"
 done

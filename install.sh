@@ -11,7 +11,7 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 
-TOUTES=(trousse fancontrole ejecter purge eveil grab fonte jauge ports bande etagere)
+TOUTES=(trousse fancontrole pouls melangeur ejecter purge eveil grab fonte jauge ports bande etagere)
 choix=(); sans=(); simulation=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -23,6 +23,7 @@ done
 [[ ${#choix[@]} -eq 0 ]] && choix=("${TOUTES[@]}")
 
 major=$(sw_vers -productVersion | cut -d. -f1)
+minor=$(sw_vers -productVersion | cut -d. -f2)
 modele=$(system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Model Name/{print $2}')
 
 # La signature stable d'abord : sans elle, chaque reconstruction perd ses autorisations.
@@ -37,6 +38,7 @@ for app in "${choix[@]}"; do
   raison=""
   [[ " ${sans[*]-} " == *" $app "* ]] && raison="exclue (--sans)"
   [[ $app == trousse && $major -lt 26 ]] && raison="exige macOS 26+"
+  [[ $app == melangeur && ( $major -lt 14 || ( $major -eq 14 && ${minor:-0} -lt 2 ) ) ]] && raison="exige macOS 14.2+"
   [[ $app == fancontrole && $modele == *"MacBook Air"* ]] && raison="MacBook Air sans ventilateur"
   [[ -f "$app/build.sh" ]] || raison="dossier introuvable"
   if [[ -n $raison ]]; then ignore+=("$app ($raison)"); continue; fi

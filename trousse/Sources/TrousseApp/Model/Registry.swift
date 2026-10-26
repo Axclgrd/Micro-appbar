@@ -8,9 +8,11 @@ import FonteKit
 import GrabKit
 import JaugeKit
 import MajKit
+import MelangeurKit
 import NuitKit
 import PauseKit
 import PortsKit
+import PoulsKit
 import PurgeKit
 import SwiftUI
 
@@ -30,6 +32,8 @@ final class Registry {
     private init() {
         modules = [
             FanModule(),
+            PoulsModule(),
+            MelangeurModule(),
             EjecterModule(),
             EveilModule(),
             PortsModule(),

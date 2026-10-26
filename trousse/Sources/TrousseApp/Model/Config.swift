@@ -88,7 +88,7 @@ final class Config {
     private static var starter: [MenuGroup] {
         [
             MenuGroup(name: "Machine", symbol: "gauge.with.dots.needle.33percent",
-                      modules: ["fancontrole", "ejecter", "eveil", "pause", "maj", "nuit"]),
+                      modules: ["fancontrole", "pouls", "melangeur", "ejecter", "eveil", "pause", "maj", "nuit"]),
             MenuGroup(name: "Travail", symbol: "wrench.and.screwdriver",
                       modules: ["ports", "purge", "bande", "etagere", "fonte", "jauge"]),
         ]

@@ -18,6 +18,7 @@ public final class MenuBarShell: NSObject, NSPopoverDelegate {
     private var item: NSStatusItem?
     private var popover: NSPopover?
     private var watcher: NSObjectProtocol?
+    private let ailleurs = ClicAilleurs()
 
     public init(module: Module, width: CGFloat = 300) {
         self.module = module
@@ -106,14 +107,15 @@ public final class MenuBarShell: NSObject, NSPopoverDelegate {
         panel.behavior = .transient
         panel.animates = true
         panel.delegate = self
-        panel.contentViewController = NSHostingController(
-            rootView: StandalonePanel(module: module).frame(width: width))
-        panel.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+        panel.contentViewController = HotePopover.controleur(StandalonePanel(module: module), largeur: width)
+        HotePopover.ouvrir(panel, sur: sender)
         popover = panel
+        ailleurs.surveiller { [weak self] in self?.close() }
         module.activate()
     }
 
     private func close() {
+        ailleurs.arreter()
         module.idle()
         popover?.performClose(nil)
         popover = nil
@@ -121,6 +123,7 @@ public final class MenuBarShell: NSObject, NSPopoverDelegate {
 
     public nonisolated func popoverDidClose(_ notification: Notification) {
         Task { @MainActor [weak self] in
+            self?.ailleurs.arreter()
             self?.module.idle()
             self?.popover = nil
         }

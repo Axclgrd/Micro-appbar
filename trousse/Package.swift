@@ -9,6 +9,8 @@ let package = Package(
     dependencies: [
         .package(path: "../Kits/Commun"),
         .package(path: "../Kits/PortsKit"),
+        .package(path: "../Kits/PoulsKit"),
+        .package(path: "../Kits/MelangeurKit"),
         .package(path: "../Kits/EveilKit"),
         .package(path: "../Kits/EtagereKit"),
         .package(path: "../Kits/EjecterKit"),
@@ -26,7 +28,7 @@ let package = Package(
         .executableTarget(
             name: "TrousseApp",
             dependencies: [
-                "Commun", "PortsKit", "EveilKit", "EjecterKit",
+                "Commun", "PortsKit", "PoulsKit", "MelangeurKit", "EveilKit", "EjecterKit",
                 "GrabKit", "BandeKit", "PurgeKit", "FanKit", "EtagereKit",
                 "FonteKit", "JaugeKit", "PauseKit", "MajKit", "NuitKit",
             ])
